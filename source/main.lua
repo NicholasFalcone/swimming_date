@@ -7,6 +7,7 @@ import "Core/Vector3"
 import "Core/Camera"
 import "Game/World"
 import "Game/Player"
+import "Game/Fish"
 
 local gfx = playdate.graphics
 
@@ -21,7 +22,7 @@ function playdate.update()
     if not player then
         -- Initialize Game
         camera = Camera(Vector3(0, 0, -10), Vector3(0, 0, 0))
-        world = World(200) -- Cube radius
+        world = World(500000000) -- Cube radius
         player = Player(camera, world)
     end
 

@@ -20,8 +20,8 @@ function World:init(size)
     }
     
     -- Water Surface Grid (Top Face: Y = +size)
-    self.surfaceRows = 8
-    self.surfaceCols = 8
+    self.surfaceRows = 4
+    self.surfaceCols = 4
     self.surfacePoints = {}
     local stepX = (size * 2) / self.surfaceRows
     local stepZ = (size * 2) / self.surfaceCols
@@ -34,15 +34,15 @@ function World:init(size)
         end
     end
     
-    -- Caustic Particles (Bottom Face: Y = -size)
-    self.caustics = {}
-    for i=1, 40 do
-        table.insert(self.caustics, {
-            pos = Vector3(math.random(-size, size), -size, math.random(-size, size)),
-            speed = math.random() * 0.05 + 0.02,
-            offset = math.random() * math.pi * 2
-        })
-    end
+    -- -- Caustic Particles (Bottom Face: Y = -size)
+    -- self.caustics = {}
+    -- for i=1, 40 do
+    --     table.insert(self.caustics, {
+    --         pos = Vector3(math.random(-size, size), -size, math.random(-size, size)),
+    --         speed = math.random() * 0.05 + 0.02,
+    --         offset = math.random() * math.pi * 2
+    --     })
+    -- end
     
     -- Suspended Particles
     math.randomseed(playdate.getSecondsSinceEpoch())
@@ -63,7 +63,7 @@ function World:draw(camera, dt)
     
     -- Update Surface Waves & Refraction
     self.accumulatedWaveDt = self.accumulatedWaveDt + dt
-    if self.accumulatedWaveDt >= 3.0 then
+    if self.accumulatedWaveDt >= 1.0 then
         for _, p in ipairs(self.surfacePoints) do
             -- Vertical Wave (Height)
             local waveY = math.sin(p.base.x * 0.03 + time * 2.5) * 8 
@@ -146,42 +146,42 @@ function World:draw(camera, dt)
     -- Reset color for next drawing
     gfx.setColor(gfx.kColorBlack)
     
-    -- Draw Floor Caustics (simulated light patterns)
-    for _, c in ipairs(self.caustics) do
-        -- Animate caustic
-        c.pos.x = c.pos.x + math.sin(time * 2.0 + c.offset) * 1.0
-        c.pos.z = c.pos.z + math.cos(time * 1.5 + c.offset) * 1.0
+    -- -- Draw Floor Caustics (simulated light patterns)
+    -- for _, c in ipairs(self.caustics) do
+    --     -- Animate caustic
+    --     c.pos.x = c.pos.x + math.sin(time * 2.0 + c.offset) * 1.0
+    --     c.pos.z = c.pos.z + math.cos(time * 1.5 + c.offset) * 1.0
         
-        -- Wrap around
-        if c.pos.x > self.size then c.pos.x = -self.size end
-        if c.pos.x < -self.size then c.pos.x = self.size end
-        if c.pos.z > self.size then c.pos.z = -self.size end
-        if c.pos.z < -self.size then c.pos.z = self.size end
+    --     -- Wrap around
+    --     if c.pos.x > self.size then c.pos.x = -self.size end
+    --     if c.pos.x < -self.size then c.pos.x = self.size end
+    --     if c.pos.z > self.size then c.pos.z = -self.size end
+    --     if c.pos.z < -self.size then c.pos.z = self.size end
         
-        local proj = camera:project(c.pos)
-        if proj then
-            -- Caustics are bright, so maybe use white with dithering or just circles?
-            -- Since background is white (screen clear), we draw black.
-            -- To make it look like light, it should be inverted? 
-            -- Playdate is 1-bit. Light = White, Shadow = Black.
-            -- So "Caustics" (Light) should be White on dark? Or Black patterns on White?
-            -- Standard Playdate: White background.
-            -- "Caustics" are usually bright lines.
-            -- If we draw black circles, they look like shadows.
-            -- Let's draw rapidly changing dithered circles to simulate shimmering light patterns?
-            -- Or simple rings.
+    --     local proj = camera:project(c.pos)
+    --     if proj then
+    --         -- Caustics are bright, so maybe use white with dithering or just circles?
+    --         -- Since background is white (screen clear), we draw black.
+    --         -- To make it look like light, it should be inverted? 
+    --         -- Playdate is 1-bit. Light = White, Shadow = Black.
+    --         -- So "Caustics" (Light) should be White on dark? Or Black patterns on White?
+    --         -- Standard Playdate: White background.
+    --         -- "Caustics" are usually bright lines.
+    --         -- If we draw black circles, they look like shadows.
+    --         -- Let's draw rapidly changing dithered circles to simulate shimmering light patterns?
+    --         -- Or simple rings.
             
-            local r = math.max(2, 100 / proj.z)
-            if r > 15 then r = 15 end
+    --         local r = math.max(2, 100 / proj.z)
+    --         if r > 15 then r = 15 end
             
-            -- Draw a "light ring"
-            gfx.setLineWidth(2)
-            gfx.drawCircleAtPoint(proj.x, proj.y, r)
+    --         -- Draw a "light ring"
+    --         gfx.setLineWidth(2)
+    --         gfx.drawCircleAtPoint(proj.x, proj.y, r)
             
-            -- Wobbly inner
-            -- gfx.fillCircleAtPoint(proj.x, proj.y, r/2)
-        end
-    end
+    --         -- Wobbly inner
+    --         -- gfx.fillCircleAtPoint(proj.x, proj.y, r/2)
+    --     end
+    -- end
     
     -- Draw Particles
     gfx.setLineWidth(1)

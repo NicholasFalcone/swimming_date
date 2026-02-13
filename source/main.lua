@@ -18,27 +18,31 @@ camera = nil
 
 fishies = {}
 
-function playdate.init()
-    for i = 1, 100 do
-        table.insert(fishies, Fish(world))
-    end
+-- Initialize Global Game State
+camera = Camera(Vector3(0, 0, -10), Vector3(0, 0, 0))
+world = World(400) -- Cube radius
+player = Player(camera, world)
+
+-- Initialize Fish
+for i = 1, 10 do
+    local randomPos = Vector3(
+        math.random(-world.size + 20, world.size - 20),
+        math.random(-world.size + 20, world.size - 20),
+        math.random(-world.size + 20, world.size - 20)
+    )
+    table.insert(fishies, Fish(randomPos, world))
 end
 
 function playdate.update()
     gfx.clear()
     
-    if not player then
-        -- Initialize Game
-        camera = Camera(Vector3(0, 0, -10), Vector3(0, 0, 0))
-        world = World(400) -- Cube radius
-        player = Player(camera, world)
-    end
+    local dt = playdate.getElapsedTime()
 
     player:update()
     world:draw(camera)
     
     for _, fish in ipairs(fishies) do
-        fish:update()
+        fish:update(dt)
         fish:draw(camera)
     end
 

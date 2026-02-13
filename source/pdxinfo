@@ -1,0 +1,10 @@
+name=Swimming
+author=User
+description=A 3D water exploration game
+bundleID=com.user.swimming
+version=0.1
+buildNumber=1
+imagePath=
+launchSoundPath=
+contentWarning=
+contentWarning2=

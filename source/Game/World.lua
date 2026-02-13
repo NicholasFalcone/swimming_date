@@ -20,15 +20,16 @@ function World:init(size)
     }
     
     -- Water Surface Grid (Top Face: Y = +size)
-    self.surfaceRows = 6
-    self.surfaceCols = 6
+    self.surfaceRows = 12
+    self.surfaceCols = 12
     self.surfacePoints = {}
-    local step = (size * 2) / self.surfaceRows
+    local stepX = (size * 2) / self.surfaceRows
+    local stepZ = (size * 2) / self.surfaceCols
     
     for x = 0, self.surfaceRows do
         for z = 0, self.surfaceCols do
-            local px = -size + x * step
-            local pz = -size + z * step
+            local px = -size + x * stepX
+            local pz = -size + z * stepZ
             table.insert(self.surfacePoints, {base = Vector3(px, size, pz), current = Vector3(px, size, pz)})
         end
     end
@@ -58,12 +59,20 @@ function World:draw(camera)
     local gfx = playdate.graphics
     local time = playdate.getCurrentTimeMilliseconds() / 1000.0
     
-    -- Update Surface Waves
+    -- Update Surface Waves & Refraction
     for _, p in ipairs(self.surfacePoints) do
-        local wave1 = math.sin(p.base.x * 0.02 + time * 2.0) * 10
-        local wave2 = math.cos(p.base.z * 0.03 + time * 1.5) * 10
-        p.current.y = p.base.y + wave1 + wave2
-        p.current.x = p.base.x + math.cos(time + p.base.y) * 5 -- slight drift
+        -- Vertical Wave (Height)
+        local waveY = math.sin(p.base.x * 0.03 + time * 2.5) * 8 
+                    + math.cos(p.base.z * 0.04 + time * 2.0) * 8
+        
+        -- Horizontal Refraction (Fake light bending)
+        -- We distort X based on Z, and Z based on X to create swirling feel
+        local refractX = math.sin(p.base.z * 0.05 + time * 3.0) * 12
+        local refractZ = math.cos(p.base.x * 0.05 + time * 2.5) * 12
+        
+        p.current.y = p.base.y + waveY
+        p.current.x = p.base.x + refractX
+        p.current.z = p.base.z + refractZ
     end
     
     -- Project Vertices
@@ -85,7 +94,7 @@ function World:draw(camera)
         end
     end
     
-    -- Draw Surface Grid (Waves)
+    -- Draw Surface Grid (Waves) with Dithering
     gfx.setLineWidth(1)
     local idx = 1
     local cols = self.surfaceCols + 1
@@ -95,6 +104,22 @@ function World:draw(camera)
             local proj = camera:project(p)
             
             if proj then 
+                -- Calculate wave intensity for dithering
+                local waveIntensity = math.abs(p.y - self.surfacePoints[idx].base.y) / 16
+                local distortion = math.abs(p.x - self.surfacePoints[idx].base.x) / 12
+                local totalDistortion = waveIntensity + distortion
+                
+                -- Apply dithering based on distortion level
+                if totalDistortion > 1.5 then
+                    gfx.setDitherPattern(0.7, gfx.image.kDitherTypeBayer4x4)
+                elseif totalDistortion > 1.0 then
+                    gfx.setDitherPattern(0.5, gfx.image.kDitherTypeBayer4x4)
+                elseif totalDistortion > 0.5 then
+                    gfx.setDitherPattern(0.3, gfx.image.kDitherTypeBayer8x8)
+                else
+                    gfx.setColor(gfx.kColorBlack)
+                end
+                
                 -- Draw lines to neighbors
                 if z < self.surfaceCols then -- Connect Z neighbor
                     local nextZ = self.surfacePoints[idx + 1].current
@@ -111,6 +136,9 @@ function World:draw(camera)
             idx = idx + 1
         end
     end
+    
+    -- Reset color for next drawing
+    gfx.setColor(gfx.kColorBlack)
     
     -- Draw Floor Caustics (simulated light patterns)
     for _, c in ipairs(self.caustics) do

@@ -14,24 +14,57 @@ function World:init(size)
     
     -- Cube Edges (indices)
     self.edges = {
-        {1,2}, {2,3}, {3,4}, {4,1}, -- Back face
-        {5,6}, {6,7}, {7,8}, {8,5}, -- Front face
+        {1,2}, {2,3}, {3,4}, {4,1}, -- Back face (Z-)
+        {5,6}, {6,7}, {7,8}, {8,5}, -- Front face (Z+)
         {1,5}, {2,6}, {3,7}, {4,8}  -- Connecting edges
     }
     
-    -- Generate random particles
+    -- Water Surface Grid (Top Face: Y = +size)
+    self.surfaceRows = 6
+    self.surfaceCols = 6
+    self.surfacePoints = {}
+    local step = (size * 2) / self.surfaceRows
+    
+    for x = 0, self.surfaceRows do
+        for z = 0, self.surfaceCols do
+            local px = -size + x * step
+            local pz = -size + z * step
+            table.insert(self.surfacePoints, {base = Vector3(px, size, pz), current = Vector3(px, size, pz)})
+        end
+    end
+    
+    -- Caustic Particles (Bottom Face: Y = -size)
+    self.caustics = {}
+    for i=1, 40 do
+        table.insert(self.caustics, {
+            pos = Vector3(math.random(-size, size), -size, math.random(-size, size)),
+            speed = math.random() * 0.05 + 0.02,
+            offset = math.random() * math.pi * 2
+        })
+    end
+    
+    -- Suspended Particles
     math.randomseed(playdate.getSecondsSinceEpoch())
-    for i=1, 100 do
+    for i=1, 60 do
         table.insert(self.particles, Vector3(
-            math.random(-size, size),
-            math.random(-size, size),
-            math.random(-size, size)
+            math.random(-size, size), -- X
+            math.random(-size, size), -- Y
+            math.random(-size, size)  -- Z
         ))
     end
 end
 
 function World:draw(camera)
     local gfx = playdate.graphics
+    local time = playdate.getCurrentTimeMilliseconds() / 1000.0
+    
+    -- Update Surface Waves
+    for _, p in ipairs(self.surfacePoints) do
+        local wave1 = math.sin(p.base.x * 0.02 + time * 2.0) * 10
+        local wave2 = math.cos(p.base.z * 0.03 + time * 1.5) * 10
+        p.current.y = p.base.y + wave1 + wave2
+        p.current.x = p.base.x + math.cos(time + p.base.y) * 5 -- slight drift
+    end
     
     -- Project Vertices
     local projected = {}
@@ -49,6 +82,70 @@ function World:draw(camera)
         
         if p1 and p2 then
             gfx.drawLine(p1.x, p1.y, p2.x, p2.y)
+        end
+    end
+    
+    -- Draw Surface Grid (Waves)
+    gfx.setLineWidth(1)
+    local idx = 1
+    local cols = self.surfaceCols + 1
+    for x = 0, self.surfaceRows do
+        for z = 0, self.surfaceCols do
+            local p = self.surfacePoints[idx].current
+            local proj = camera:project(p)
+            
+            if proj then 
+                -- Draw lines to neighbors
+                if z < self.surfaceCols then -- Connect Z neighbor
+                    local nextZ = self.surfacePoints[idx + 1].current
+                    local nextProj = camera:project(nextZ)
+                    if nextProj then gfx.drawLine(proj.x, proj.y, nextProj.x, nextProj.y) end
+                end
+                
+                if x < self.surfaceRows then -- Connect X neighbor
+                    local nextX = self.surfacePoints[idx + cols].current
+                    local nextProj = camera:project(nextX)
+                    if nextProj then gfx.drawLine(proj.x, proj.y, nextProj.x, nextProj.y) end
+                end
+            end
+            idx = idx + 1
+        end
+    end
+    
+    -- Draw Floor Caustics (simulated light patterns)
+    for _, c in ipairs(self.caustics) do
+        -- Animate caustic
+        c.pos.x = c.pos.x + math.sin(time * 2.0 + c.offset) * 1.0
+        c.pos.z = c.pos.z + math.cos(time * 1.5 + c.offset) * 1.0
+        
+        -- Wrap around
+        if c.pos.x > self.size then c.pos.x = -self.size end
+        if c.pos.x < -self.size then c.pos.x = self.size end
+        if c.pos.z > self.size then c.pos.z = -self.size end
+        if c.pos.z < -self.size then c.pos.z = self.size end
+        
+        local proj = camera:project(c.pos)
+        if proj then
+            -- Caustics are bright, so maybe use white with dithering or just circles?
+            -- Since background is white (screen clear), we draw black.
+            -- To make it look like light, it should be inverted? 
+            -- Playdate is 1-bit. Light = White, Shadow = Black.
+            -- So "Caustics" (Light) should be White on dark? Or Black patterns on White?
+            -- Standard Playdate: White background.
+            -- "Caustics" are usually bright lines.
+            -- If we draw black circles, they look like shadows.
+            -- Let's draw rapidly changing dithered circles to simulate shimmering light patterns?
+            -- Or simple rings.
+            
+            local r = math.max(2, 100 / proj.z)
+            if r > 15 then r = 15 end
+            
+            -- Draw a "light ring"
+            gfx.setLineWidth(2)
+            gfx.drawCircleAtPoint(proj.x, proj.y, r)
+            
+            -- Wobbly inner
+            -- gfx.fillCircleAtPoint(proj.x, proj.y, r/2)
         end
     end
     

@@ -9,9 +9,9 @@ function Fish:init(position, world)
         math.random() * 2 - 1,
         math.random() * 2 - 1,
         math.random() * 2 - 1
-    ):normalize():mul(math.random() * 0.5 + 0.3)
+    ):normalize():mul(math.random() * 0.2 + 0.1)
     
-    self.speed = math.random() * 0.8 + 0.5
+    self.speed = math.random() * 0.3 + 0.2
     self.wobblePhase = math.random() * math.pi * 2
     self.turnTimer = math.random() * 3.0 + 2.0 -- Time until direction change
     
@@ -31,6 +31,9 @@ function Fish:init(position, world)
         {Vector3(0, 0, -1), Vector3(0, 0.5, -1.3)},  -- tail base to top fin
         {Vector3(0, 0, -1), Vector3(0, -0.5, -1.3)}, -- tail base to bottom fin
     }
+    
+    self.frameCounter = math.random(0, 59)
+    self.accumulatedDt = 0
 end
 
 function Fish:update(dt)
@@ -39,54 +42,60 @@ function Fish:update(dt)
     -- Swimming wobble (tail movement simulation)
     local wobble = math.sin(time * 5.0 + self.wobblePhase) * 0.02
     
-    -- Update direction periodically
-    self.turnTimer = self.turnTimer - dt
-    if self.turnTimer <= 0 then
-        self.turnTimer = math.random() * 4.0 + 2.0
-        -- Slight direction change
-        local turn = Vector3(
-            (math.random() * 2 - 1) * 0.3,
-            (math.random() * 2 - 1) * 0.3,
-            (math.random() * 2 - 1) * 0.3
-        )
-        self.velocity = self.velocity:add(turn):normalize():mul(self.speed)
+    -- Update AI and collisions only every 1.0 second
+    self.accumulatedDt = self.accumulatedDt + dt
+    if self.accumulatedDt >= 1.0 then
+        -- Update direction periodically
+        self.turnTimer = self.turnTimer - self.accumulatedDt
+        if self.turnTimer <= 0 then
+            self.turnTimer = math.random() * 4.0 + 2.0
+            -- Slight direction change
+            local turn = Vector3(
+                (math.random() * 2 - 1) * 0.3,
+                (math.random() * 2 - 1) * 0.3,
+                (math.random() * 2 - 1) * 0.3
+            )
+            self.velocity = self.velocity:add(turn):normalize():mul(self.speed)
+        end
+        
+        -- Wall avoidance
+        local limit = self.world.size - 30
+        local bounce = 0.5
+        
+        if self.position.x > limit then
+            self.position.x = limit
+            self.velocity.x = -math.abs(self.velocity.x) * bounce
+        elseif self.position.x < -limit then
+            self.position.x = -limit
+            self.velocity.x = math.abs(self.velocity.x) * bounce
+        end
+        
+        if self.position.y > limit then
+            self.position.y = limit
+            self.velocity.y = -math.abs(self.velocity.y) * bounce
+        elseif self.position.y < -limit then
+            self.position.y = -limit
+            self.velocity.y = math.abs(self.velocity.y) * bounce
+        end
+        
+        if self.position.z > limit then
+            self.position.z = limit
+            self.velocity.z = -math.abs(self.velocity.z) * bounce
+        elseif self.position.z < -limit then
+            self.position.z = -limit
+            self.velocity.z = math.abs(self.velocity.z) * bounce
+        end
+        
+        -- Calculate rotation (yaw) based on velocity direction
+        if self.velocity:magnitude() > 0.01 then
+            self.rotation = math.atan2(self.velocity.x, self.velocity.z)
+        end
+        
+        self.accumulatedDt = 0
     end
-    
-    -- Apply velocity
-    self.position = self.position:add(self.velocity:mul(dt * 60))
-    
-    -- Wall avoidance
-    local limit = self.world.size - 30
-    local bounce = 0.5
-    
-    if self.position.x > limit then
-        self.position.x = limit
-        self.velocity.x = -math.abs(self.velocity.x) * bounce
-    elseif self.position.x < -limit then
-        self.position.x = -limit
-        self.velocity.x = math.abs(self.velocity.x) * bounce
-    end
-    
-    if self.position.y > limit then
-        self.position.y = limit
-        self.velocity.y = -math.abs(self.velocity.y) * bounce
-    elseif self.position.y < -limit then
-        self.position.y = -limit
-        self.velocity.y = math.abs(self.velocity.y) * bounce
-    end
-    
-    if self.position.z > limit then
-        self.position.z = limit
-        self.velocity.z = -math.abs(self.velocity.z) * bounce
-    elseif self.position.z < -limit then
-        self.position.z = -limit
-        self.velocity.z = math.abs(self.velocity.z) * bounce
-    end
-    
-    -- Calculate rotation (yaw) based on velocity direction
-    if self.velocity:magnitude() > 0.01 then
-        self.rotation = math.atan2(self.velocity.x, self.velocity.z)
-    end
+
+    -- Always apply velocity for smooth movement
+    self.position = self.position:add(self.velocity:mul(dt * 40))
 end
 
 function Fish:draw(camera)

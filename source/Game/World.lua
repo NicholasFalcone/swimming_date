@@ -20,8 +20,8 @@ function World:init(size)
     }
     
     -- Water Surface Grid (Top Face: Y = +size)
-    self.surfaceRows = 12
-    self.surfaceCols = 12
+    self.surfaceRows = 8
+    self.surfaceCols = 8
     self.surfacePoints = {}
     local stepX = (size * 2) / self.surfaceRows
     local stepZ = (size * 2) / self.surfaceCols
@@ -53,26 +53,32 @@ function World:init(size)
             math.random(-size, size)  -- Z
         ))
     end
+    
+    self.accumulatedWaveDt = 0
 end
 
-function World:draw(camera)
+function World:draw(camera, dt)
     local gfx = playdate.graphics
     local time = playdate.getCurrentTimeMilliseconds() / 1000.0
     
     -- Update Surface Waves & Refraction
-    for _, p in ipairs(self.surfacePoints) do
-        -- Vertical Wave (Height)
-        local waveY = math.sin(p.base.x * 0.03 + time * 2.5) * 8 
-                    + math.cos(p.base.z * 0.04 + time * 2.0) * 8
-        
-        -- Horizontal Refraction (Fake light bending)
-        -- We distort X based on Z, and Z based on X to create swirling feel
-        local refractX = math.sin(p.base.z * 0.05 + time * 3.0) * 12
-        local refractZ = math.cos(p.base.x * 0.05 + time * 2.5) * 12
-        
-        p.current.y = p.base.y + waveY
-        p.current.x = p.base.x + refractX
-        p.current.z = p.base.z + refractZ
+    self.accumulatedWaveDt = self.accumulatedWaveDt + dt
+    if self.accumulatedWaveDt >= 3.0 then
+        for _, p in ipairs(self.surfacePoints) do
+            -- Vertical Wave (Height)
+            local waveY = math.sin(p.base.x * 0.03 + time * 2.5) * 8 
+                        + math.cos(p.base.z * 0.04 + time * 2.0) * 8
+            
+            -- Horizontal Refraction (Fake light bending)
+            -- We distort X based on Z, and Z based on X to create swirling feel
+            local refractX = math.sin(p.base.z * 0.05 + time * 3.0) * 12
+            local refractZ = math.cos(p.base.x * 0.05 + time * 2.5) * 12
+            
+            p.current.y = p.base.y + waveY
+            p.current.x = p.base.x + refractX
+            p.current.z = p.base.z + refractZ
+        end
+        self.accumulatedWaveDt = 0
     end
     
     -- Project Vertices

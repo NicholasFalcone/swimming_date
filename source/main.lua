@@ -33,19 +33,23 @@ for i = 1, 10 do
     table.insert(fishies, Fish(randomPos, world))
 end
 
+local lastTime = playdate.getCurrentTimeMilliseconds()
+
 function playdate.update()
     gfx.clear()
     
-    local dt = playdate.getElapsedTime()
+    local currentTime = playdate.getCurrentTimeMilliseconds()
+    local dt = (currentTime - lastTime) / 1000.0
+    lastTime = currentTime
+    
+    -- Cap dt to 100ms to avoid physics jumps after pauses or lag
+    if dt > 0.1 then dt = 0.1 end
 
     player:update()
-    world:draw(camera)
+    world:draw(camera, dt)
     
     for _, fish in ipairs(fishies) do
         fish:update(dt)
         fish:draw(camera)
     end
-
-    -- Debug Info
-    -- gfx.drawText("FPS: " .. playdate.getFPS(), 5, 5)
 end
